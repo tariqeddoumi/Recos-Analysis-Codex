@@ -62,3 +62,7 @@ Exécuter les scripts dans l'ordre dans l'éditeur SQL Supabase :
 - Ajouter les migrations Prisma et politiques RLS Supabase affinées par rôle/entité/confidentialité.
 - Intégrer composants shadcn/ui et écrans opérationnels.
 - Implémenter workflows multi-niveaux, relances automatiques et reporting régulateur.
+
+## Correctifs déploiement Vercel
+- Mise à jour de Next.js vers une version patchée (`15.3.3`) pour éviter la version vulnérable `15.0.4` signalée au build.
+- Ajout d'un `middleware.ts` à la racine du projet (point d'entrée attendu par Next.js) avec `matcher` explicite.
