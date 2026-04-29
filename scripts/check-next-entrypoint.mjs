@@ -1,15 +1,27 @@
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 
-const hasMiddleware = existsSync('./middleware.ts') || existsSync('./src/middleware.ts');
-const hasProxy = existsSync('./proxy.ts') || existsSync('./src/proxy.ts');
+const middlewarePaths = ['./middleware.ts', './src/middleware.ts'];
+const proxyPaths = ['./proxy.ts', './src/proxy.ts'];
 
-if (hasMiddleware && hasProxy) {
-  console.error('❌ Conflict detected: both middleware.ts and proxy.ts exist. Keep only proxy.ts for Next.js 16+.');
+const existingMiddleware = middlewarePaths.filter((path) => existsSync(path));
+const hasProxy = proxyPaths.some((path) => existsSync(path));
+
+if (existingMiddleware.length > 0 && hasProxy) {
+  for (const file of existingMiddleware) {
+    rmSync(file, { force: true });
+    console.warn(`⚠️ Removed deprecated entrypoint: ${file}`);
+  }
+  console.log('✅ Deprecated middleware entrypoint removed; using proxy.ts only.');
+  process.exit(0);
+}
+
+if (existingMiddleware.length > 0) {
+  console.error('❌ Deprecated entrypoint detected: middleware.ts exists. Rename it to proxy.ts for Next.js 16+.');
   process.exit(1);
 }
 
-if (hasMiddleware) {
-  console.error('❌ Deprecated entrypoint detected: middleware.ts exists. Rename it to proxy.ts for Next.js 16+.');
+if (!hasProxy) {
+  console.error('❌ Missing proxy.ts entrypoint. Add proxy.ts at project root (or src/proxy.ts).');
   process.exit(1);
 }
 
