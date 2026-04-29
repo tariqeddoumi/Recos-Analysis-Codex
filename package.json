@@ -9,7 +9,8 @@
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prebuild": "node scripts/check-next-entrypoint.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
