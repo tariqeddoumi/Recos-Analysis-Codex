@@ -64,5 +64,5 @@ Exécuter les scripts dans l'ordre dans l'éditeur SQL Supabase :
 - Implémenter workflows multi-niveaux, relances automatiques et reporting régulateur.
 
 ## Correctifs déploiement Vercel
-- Mise à jour de Next.js vers une version patchée (`15.3.3`) pour éviter la version vulnérable `15.0.4` signalée au build.
+- Mise à jour de Next.js vers une version patchée (`15.5.2`) pour éviter la version vulnérable `15.0.4` signalée au build.
 - Ajout d'un `middleware.ts` à la racine du projet (point d'entrée attendu par Next.js) avec `matcher` explicite.
