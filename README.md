@@ -2,6 +2,43 @@
 
 Socle applicatif Next.js + TypeScript pour le suivi des recommandations CAC / Inspection / Régulateur.
 
+## Variables d'environnement à créer dans Vercel
+
+### Obligatoires (runtime applicatif)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL` (chaîne PostgreSQL Supabase compatible Prisma)
+- `DIRECT_URL` (connexion directe Supabase pour migrations Prisma)
+
+### Sécurité / Auth applicative
+- `APP_URL` (URL publique de l'application)
+- `SESSION_COOKIE_NAME` (ex: `sb-access-token`)
+- `SESSION_TTL_MINUTES`
+- `ENCRYPTION_KEY` (32+ caractères)
+- `AUDIT_LOG_SALT`
+
+### Notifications / relances
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
+- `TEAMS_WEBHOOK_URL` (optionnel)
+
+### Exports / jobs planifiés
+- `CRON_SECRET`
+- `EXPORT_SIGNING_KEY`
+
+## Scripts SQL Supabase
+
+Exécuter les scripts dans l'ordre dans l'éditeur SQL Supabase :
+1. `supabase/sql/001_init_suivi_reco.sql`
+2. `supabase/sql/002_rls_policies.sql`
+
+> Le script `001` crée le schéma `suivi_reco`, les tables métier, RBAC, audit et paramétrage.
+> Le script `002` active RLS et pose des politiques de base (service role backend + lecture référentiels).
+
 ## Stack
 - Front: Next.js, TypeScript, Tailwind, shadcn/ui (à intégrer via composants `components/ui`), React Hook Form, Zod, Recharts.
 - Back: API routes / server actions, services métiers séparés, validation serveur systématique.
@@ -22,6 +59,6 @@ Socle applicatif Next.js + TypeScript pour le suivi des recommandations CAC / In
 4. **Scalabilité**: architecture modulaire, services métiers découplés et compatible cloud/on-prem.
 
 ## Prochaines étapes
-- Ajouter les migrations Prisma et politiques RLS Supabase.
+- Ajouter les migrations Prisma et politiques RLS Supabase affinées par rôle/entité/confidentialité.
 - Intégrer composants shadcn/ui et écrans opérationnels.
 - Implémenter workflows multi-niveaux, relances automatiques et reporting régulateur.
