@@ -55,7 +55,7 @@ Exécuter les scripts dans l'ordre dans l'éditeur SQL Supabase :
 ## Principes clés implémentés
 1. **Aucune règle métier en dur**: statuts, coefficients, workflows et règles de relance doivent être maintenus en tables de paramétrage (`ParameterSetting` + référentiels dédiés).
 2. **Auditabilité**: journalisation des événements critiques via `AuditLog`.
-3. **Sécurité**: middleware d'authentification, RBAC prévu via tables `Role`, `Permission`, `UserRole`, `RolePermission`.
+3. **Sécurité**: proxy d'authentification, RBAC prévu via tables `Role`, `Permission`, `UserRole`, `RolePermission`.
 4. **Scalabilité**: architecture modulaire, services métiers découplés et compatible cloud/on-prem.
 
 ## Prochaines étapes
@@ -65,4 +65,4 @@ Exécuter les scripts dans l'ordre dans l'éditeur SQL Supabase :
 
 ## Correctifs déploiement Vercel
 - Mise à jour de Next.js vers une version patchée (`16.0.0`) pour éviter la version vulnérable `15.0.4` signalée au build.
-- Ajout d'un `middleware.ts` à la racine du projet (point d'entrée attendu par Next.js) avec `matcher` explicite.
+- Ajout d'un `proxy.ts` à la racine du projet (point d'entrée attendu par Next.js) avec `matcher` explicite.
