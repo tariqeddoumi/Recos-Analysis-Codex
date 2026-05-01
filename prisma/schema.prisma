@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["suivi_reco"]
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  fullName    String
+  entityId    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  roles       UserRole[]
+  auditLogs   AuditLog[]
+  @@schema("suivi_reco")
+}
+model Role { id String @id @default(uuid()) code String @unique label String permissions RolePermission[] users UserRole[] @@schema("suivi_reco") }
+model Permission { id String @id @default(uuid()) code String @unique module String action String roleLinks RolePermission[] @@schema("suivi_reco") }
+model UserRole { userId String roleId String user User @relation(fields:[userId],references:[id]) role Role @relation(fields:[roleId],references:[id]) @@id([userId,roleId]) @@schema("suivi_reco") }
+model RolePermission { roleId String permissionId String role Role @relation(fields:[roleId],references:[id]) permission Permission @relation(fields:[permissionId],references:[id]) @@id([roleId,permissionId]) @@schema("suivi_reco") }
+model Entity { id String @id @default(uuid()) code String @unique label String isActive Boolean @default(true) @@schema("suivi_reco") }
+model Mission { id String @id @default(uuid()) reference String @unique title String statusId String confidentialityLevelId String sourceTypeId String entityId String? startedAt DateTime? endedAt DateTime? isArchived Boolean @default(false) recommendations Recommendation[] @@schema("suivi_reco") }
+model Recommendation { id String @id @default(uuid()) code String @unique missionId String mission Mission @relation(fields:[missionId],references:[id]) sourceTypeId String statusId String riskTypeId String severityLevelId String probabilityLevelId String confidentialityLevelId String ownerId String? dueDateInitial DateTime? dueDateRevised DateTime? progress Decimal @default(0) criticityScore Decimal @default(0) priorityClassId String actions Action[] evidences Evidence[] @@schema("suivi_reco") }
+model Action { id String @id @default(uuid()) recommendationId String recommendation Recommendation @relation(fields:[recommendationId],references:[id]) title String statusId String ownerId String? startDate DateTime? dueDate DateTime? completionDate DateTime? weight Decimal @default(1) progress Decimal @default(0) evidenceRequired Boolean @default(true) evidences Evidence[] @@schema("suivi_reco") }
+model Evidence { id String @id @default(uuid()) recommendationId String recommendation Recommendation @relation(fields:[recommendationId],references:[id]) actionId String? action Action? @relation(fields:[actionId],references:[id]) evidenceTypeId String title String storagePath String version Int @default(1) validationStatusId String uploadedBy String uploadedAt DateTime @default(now()) fileHash String? @@schema("suivi_reco") }
+model DeadlineExtension { id String @id @default(uuid()) recommendationId String? actionId String? currentDueDate DateTime requestedDueDate DateTime statusId String reason String requesterId String requestedAt DateTime @default(now()) @@schema("suivi_reco") }
+model AuditLog { id String @id @default(uuid()) userId String? user User? @relation(fields:[userId],references:[id]) module String action String objectType String objectId String oldValue Json? newValue Json? ipAddress String? createdAt DateTime @default(now()) @@schema("suivi_reco") }
+model Notification { id String @id @default(uuid()) userId String typeCode String payload Json sentAt DateTime? readAt DateTime? @@schema("suivi_reco") }
+model ParameterSetting { id String @id @default(uuid()) domain String code String label String value Json isActive Boolean @default(true) @@unique([domain,code]) @@schema("suivi_reco") }
+
+model SourceType { id String @id @default(uuid()) code String @unique label String coefficient Decimal @default(1) @@schema("suivi_reco") }
+model RiskType { id String @id @default(uuid()) code String @unique label String @@schema("suivi_reco") }
+model SeverityLevel { id String @id @default(uuid()) code String @unique label String level Int @@schema("suivi_reco") }
+model ProbabilityLevel { id String @id @default(uuid()) code String @unique label String level Int @@schema("suivi_reco") }
+model ConfidentialityLevel { id String @id @default(uuid()) code String @unique label String rank Int @@schema("suivi_reco") }
