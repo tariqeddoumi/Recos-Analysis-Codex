@@ -1,8 +1,3 @@
-export default function Page() {
-  return (
-    <section className="space-y-3">
-      <h1 className="text-2xl font-semibold capitalize">audit-log</h1>
-      <p className="text-slate-600">Module professionnel paramétrable avec traçabilité bancaire.</p>
-    </section>
-  );
-}
+import { DataTable, StatusBadge } from '@/components/ui';
+const rows = [['06/05/2026 08:30', 'IMPORT_EXCEL', 'PREVIEW_CREATED', 'import_batch', <StatusBadge key="s" tone="blue">Traçé</StatusBadge>], ['06/05/2026 08:45', 'WORKFLOW', 'STATUS_CHANGED', 'recommendation', <StatusBadge key="s" tone="emerald">Traçé</StatusBadge>]];
+export default function Page() { return <section className="space-y-6"><div><h1 className="text-3xl font-bold text-slate-950">Audit log</h1><p className="mt-2 text-slate-600">Journal bancaire immuable des imports, mappings, validations, changements de statut et opérations sensibles.</p></div><DataTable columns={['Date', 'Module', 'Action', 'Objet', 'Statut']} rows={rows} empty="Aucune trace." /></section>; }

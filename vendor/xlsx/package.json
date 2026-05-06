@@ -1,0 +1,7 @@
+{
+  "name": "xlsx",
+  "version": "0.18.5-local",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "Apache-2.0"
+}

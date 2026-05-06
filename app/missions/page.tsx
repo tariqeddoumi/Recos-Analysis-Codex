@@ -1,8 +1,3 @@
-export default function Page() {
-  return (
-    <section className="space-y-3">
-      <h1 className="text-2xl font-semibold capitalize">missions</h1>
-      <p className="text-slate-600">Module professionnel paramétrable avec traçabilité bancaire.</p>
-    </section>
-  );
-}
+import { DataTable, StatusBadge } from '@/components/ui';
+const rows = [['M-IG-2026-04', 'Inspection générale crédits', 'Inspection', 'Direction Crédits', <StatusBadge key="s" tone="blue">Ouverte</StatusBadge>, '42'], ['M-RISK-2026-02', 'Revue dispositif risques', 'Contrôle permanent', 'Risques', <StatusBadge key="s" tone="emerald">Validée</StatusBadge>, '18']];
+export default function Page() { return <section className="space-y-6"><div><h1 className="text-3xl font-bold text-slate-950">Missions</h1><p className="mt-2 text-slate-600">Pilotage des missions sources, entités responsables, confidentialité et rattachement des recommandations.</p></div><DataTable columns={['Référence', 'Titre', 'Source', 'Entité', 'Statut', 'Recos']} rows={rows} empty="Aucune mission." /></section>; }
