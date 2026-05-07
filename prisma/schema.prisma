@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
@@ -9,33 +10,372 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  fullName    String
-  entityId    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  roles       UserRole[]
-  auditLogs   AuditLog[]
+  id        String     @id @default(uuid())
+  email     String     @unique
+  fullName  String     @map("full_name")
+  entityId  String?    @map("entity_id")
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  roles     UserRole[]
+  auditLogs AuditLog[]
+  @@map("users")
   @@schema("suivi_reco")
 }
-model Role { id String @id @default(uuid()) code String @unique label String permissions RolePermission[] users UserRole[] @@schema("suivi_reco") }
-model Permission { id String @id @default(uuid()) code String @unique module String action String roleLinks RolePermission[] @@schema("suivi_reco") }
-model UserRole { userId String roleId String user User @relation(fields:[userId],references:[id]) role Role @relation(fields:[roleId],references:[id]) @@id([userId,roleId]) @@schema("suivi_reco") }
-model RolePermission { roleId String permissionId String role Role @relation(fields:[roleId],references:[id]) permission Permission @relation(fields:[permissionId],references:[id]) @@id([roleId,permissionId]) @@schema("suivi_reco") }
-model Entity { id String @id @default(uuid()) code String @unique label String isActive Boolean @default(true) @@schema("suivi_reco") }
-model Mission { id String @id @default(uuid()) reference String @unique title String statusId String confidentialityLevelId String sourceTypeId String entityId String? startedAt DateTime? endedAt DateTime? isArchived Boolean @default(false) recommendations Recommendation[] @@schema("suivi_reco") }
-model Recommendation { id String @id @default(uuid()) code String @unique missionId String mission Mission @relation(fields:[missionId],references:[id]) sourceTypeId String statusId String riskTypeId String severityLevelId String probabilityLevelId String confidentialityLevelId String ownerId String? dueDateInitial DateTime? dueDateRevised DateTime? progress Decimal @default(0) criticityScore Decimal @default(0) priorityClassId String actions Action[] evidences Evidence[] @@schema("suivi_reco") }
-model Action { id String @id @default(uuid()) recommendationId String recommendation Recommendation @relation(fields:[recommendationId],references:[id]) title String statusId String ownerId String? startDate DateTime? dueDate DateTime? completionDate DateTime? weight Decimal @default(1) progress Decimal @default(0) evidenceRequired Boolean @default(true) evidences Evidence[] @@schema("suivi_reco") }
-model Evidence { id String @id @default(uuid()) recommendationId String recommendation Recommendation @relation(fields:[recommendationId],references:[id]) actionId String? action Action? @relation(fields:[actionId],references:[id]) evidenceTypeId String title String storagePath String version Int @default(1) validationStatusId String uploadedBy String uploadedAt DateTime @default(now()) fileHash String? @@schema("suivi_reco") }
-model DeadlineExtension { id String @id @default(uuid()) recommendationId String? actionId String? currentDueDate DateTime requestedDueDate DateTime statusId String reason String requesterId String requestedAt DateTime @default(now()) @@schema("suivi_reco") }
-model AuditLog { id String @id @default(uuid()) userId String? user User? @relation(fields:[userId],references:[id]) module String action String objectType String objectId String oldValue Json? newValue Json? ipAddress String? createdAt DateTime @default(now()) @@schema("suivi_reco") }
-model Notification { id String @id @default(uuid()) userId String typeCode String payload Json sentAt DateTime? readAt DateTime? @@schema("suivi_reco") }
-model ParameterSetting { id String @id @default(uuid()) domain String code String label String value Json isActive Boolean @default(true) @@unique([domain,code]) @@schema("suivi_reco") }
 
-model SourceType { id String @id @default(uuid()) code String @unique label String coefficient Decimal @default(1) @@schema("suivi_reco") }
-model RiskType { id String @id @default(uuid()) code String @unique label String @@schema("suivi_reco") }
-model SeverityLevel { id String @id @default(uuid()) code String @unique label String level Int @@schema("suivi_reco") }
-model ProbabilityLevel { id String @id @default(uuid()) code String @unique label String level Int @@schema("suivi_reco") }
-model ConfidentialityLevel { id String @id @default(uuid()) code String @unique label String rank Int @@schema("suivi_reco") }
+model Role {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  label       String
+  permissions RolePermission[]
+  users       UserRole[]
+  @@map("roles")
+  @@schema("suivi_reco")
+}
+
+model Permission {
+  id        String           @id @default(uuid())
+  code      String           @unique
+  module    String
+  action    String
+  roleLinks RolePermission[]
+  @@map("permissions")
+  @@schema("suivi_reco")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+  @@id([userId, roleId])
+  @@map("user_roles")
+  @@schema("suivi_reco")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+  @@schema("suivi_reco")
+}
+
+model Entity {
+  id       String  @id @default(uuid())
+  code     String  @unique
+  label    String
+  isActive Boolean @default(true) @map("is_active")
+  @@map("entities")
+  @@schema("suivi_reco")
+}
+
+model Mission {
+  id                     String           @id @default(uuid())
+  reference              String           @unique
+  title                  String
+  statusId               String           @map("status_id")
+  confidentialityLevelId String           @map("confidentiality_level_id")
+  sourceTypeId           String           @map("source_type_id")
+  entityId               String?          @map("entity_id")
+  startedAt              DateTime?        @map("started_at")
+  endedAt                DateTime?        @map("ended_at")
+  isArchived             Boolean          @default(false) @map("is_archived")
+  recommendations        Recommendation[]
+  @@map("missions")
+  @@schema("suivi_reco")
+}
+
+model Recommendation {
+  id                     String                        @id @default(uuid())
+  code                   String                        @unique
+  missionId              String                        @map("mission_id")
+  mission                Mission                       @relation(fields: [missionId], references: [id])
+  sourceTypeId           String                        @map("source_type_id")
+  statusId               String                        @map("status_id")
+  riskTypeId             String                        @map("risk_type_id")
+  severityLevelId        String                        @map("severity_level_id")
+  probabilityLevelId     String                        @map("probability_level_id")
+  confidentialityLevelId String                        @map("confidentiality_level_id")
+  ownerId                String?                       @map("owner_id")
+  ownerName              String?                       @map("owner_name")
+  title                  String?
+  observation            String?
+  expectedDeliverable    String?                       @map("expected_deliverable")
+  dueDateInitial         DateTime?                     @map("due_date_initial")
+  dueDateRevised         DateTime?                     @map("due_date_revised")
+  progress               Decimal                       @default(0)
+  criticityScore         Decimal                       @default(0) @map("criticity_score")
+  priorityClassId        String                        @map("priority_class")
+  actions                Action[]
+  evidences              Evidence[]
+  comments               RecommendationComment[]
+  statusHistory          RecommendationStatusHistory[]
+  stakeholderInputs      StakeholderInput[]
+  @@map("recommendations")
+  @@schema("suivi_reco")
+}
+
+model Action {
+  id                String      @id @default(uuid())
+  recommendationId  String      @map("recommendation_id")
+  recommendation    Recommendation @relation(fields: [recommendationId], references: [id])
+  title             String
+  statusId          String      @map("status_id")
+  ownerId           String?     @map("owner_id")
+  ownerName         String?     @map("owner_name")
+  startDate         DateTime?   @map("start_date")
+  dueDate           DateTime?   @map("due_date")
+  completionDate    DateTime?   @map("completion_date")
+  weight            Decimal     @default(1)
+  progress          Decimal     @default(0)
+  evidenceRequired  Boolean     @default(true) @map("evidence_required")
+  evidences         Evidence[]
+  @@map("actions")
+  @@schema("suivi_reco")
+}
+
+model Evidence {
+  id                 String         @id @default(uuid())
+  recommendationId   String         @map("recommendation_id")
+  recommendation     Recommendation @relation(fields: [recommendationId], references: [id])
+  actionId           String?        @map("action_id")
+  action             Action?        @relation(fields: [actionId], references: [id])
+  evidenceTypeId     String         @map("evidence_type_id")
+  title              String
+  storagePath        String         @map("storage_path")
+  version            Int            @default(1)
+  validationStatusId String         @map("validation_status_id")
+  uploadedBy         String         @map("uploaded_by")
+  uploadedAt         DateTime       @default(now()) @map("uploaded_at")
+  fileHash           String?        @map("file_hash")
+  @@map("evidences")
+  @@schema("suivi_reco")
+}
+
+model DeadlineExtension {
+  id               String   @id @default(uuid())
+  recommendationId String?  @map("recommendation_id")
+  actionId         String?  @map("action_id")
+  currentDueDate   DateTime @map("current_due_date")
+  requestedDueDate DateTime @map("requested_due_date")
+  statusId         String   @map("status_id")
+  reason           String
+  requesterId      String   @map("requester_id")
+  requestedAt      DateTime @default(now()) @map("requested_at")
+  @@map("deadline_extensions")
+  @@schema("suivi_reco")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id])
+  module     String
+  action     String
+  objectType String   @map("object_type")
+  objectId   String   @map("object_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@map("audit_logs")
+  @@schema("suivi_reco")
+}
+
+model Notification {
+  id       String    @id @default(uuid())
+  userId   String    @map("user_id")
+  typeCode String    @map("type_code")
+  payload  Json
+  sentAt   DateTime? @map("sent_at")
+  readAt   DateTime? @map("read_at")
+  @@map("notifications")
+  @@schema("suivi_reco")
+}
+
+model ParameterSetting {
+  id       String  @id @default(uuid())
+  domain   String
+  code     String
+  label    String
+  value    Json
+  isActive Boolean @default(true) @map("is_active")
+  @@unique([domain, code])
+  @@map("parameter_settings")
+  @@schema("suivi_reco")
+}
+
+model SourceType {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  label       String
+  coefficient Decimal @default(1)
+  @@map("source_types")
+  @@schema("suivi_reco")
+}
+
+model RiskType {
+  id    String @id @default(uuid())
+  code  String @unique
+  label String
+  @@map("risk_types")
+  @@schema("suivi_reco")
+}
+
+model SeverityLevel {
+  id    String @id @default(uuid())
+  code  String @unique
+  label String
+  level Int
+  @@map("severity_levels")
+  @@schema("suivi_reco")
+}
+
+model ProbabilityLevel {
+  id    String @id @default(uuid())
+  code  String @unique
+  label String
+  level Int
+  @@map("probability_levels")
+  @@schema("suivi_reco")
+}
+
+model ConfidentialityLevel {
+  id    String @id @default(uuid())
+  code  String @unique
+  label String
+  rank  Int
+  @@map("confidentiality_levels")
+  @@schema("suivi_reco")
+}
+
+model ImportBatch {
+  id              String        @id @default(uuid())
+  fileName        String        @map("file_name")
+  importType      String        @map("import_type")
+  status          String        @default("PREVIEW")
+  detectedColumns Json          @default("[]") @map("detected_columns")
+  mapping         Json          @default("{}")
+  totalRows       Int           @default(0) @map("total_rows")
+  validRows       Int           @default(0) @map("valid_rows")
+  rejectedRows    Int           @default(0) @map("rejected_rows")
+  importedRows    Int           @default(0) @map("imported_rows")
+  uploadedBy      String?       @map("uploaded_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  confirmedAt     DateTime?     @map("confirmed_at")
+  rows            ImportRow[]
+  errors          ImportError[]
+  @@map("import_batches")
+  @@schema("suivi_reco")
+}
+
+model ImportRow {
+  id            String        @id @default(uuid())
+  batchId       String        @map("batch_id")
+  batch         ImportBatch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  lineNumber    Int           @map("line_number")
+  rawData       Json          @map("raw_data")
+  mappedData    Json          @default("{}") @map("mapped_data")
+  status        String        @default("PENDING")
+  correctedData Json?         @map("corrected_data")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  errors        ImportError[]
+  @@unique([batchId, lineNumber])
+  @@map("import_rows")
+  @@schema("suivi_reco")
+}
+
+model ImportError {
+  id         String      @id @default(uuid())
+  batchId    String      @map("batch_id")
+  batch      ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  rowId      String?     @map("row_id")
+  row        ImportRow?  @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  lineNumber Int         @map("line_number")
+  fieldName  String?     @map("field_name")
+  message    String
+  severity   String      @default("ERROR")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  @@map("import_errors")
+  @@schema("suivi_reco")
+}
+
+model ExcelColumnMapping {
+  id                 String   @id @default(uuid())
+  importType         String   @map("import_type")
+  sourceColumn       String   @map("source_column")
+  targetField        String   @map("target_field")
+  isRequired         Boolean  @default(false) @map("is_required")
+  transformationRule Json     @default("{}") @map("transformation_rule")
+  createdAt          DateTime @default(now()) @map("created_at")
+  @@unique([importType, sourceColumn, targetField])
+  @@map("excel_column_mappings")
+  @@schema("suivi_reco")
+}
+
+model RecommendationTemplate {
+  id          String          @id @default(uuid())
+  code        String          @unique
+  label       String
+  description String?
+  isActive    Boolean         @default(true) @map("is_active")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  fields      TemplateField[]
+  @@map("recommendation_templates")
+  @@schema("suivi_reco")
+}
+
+model TemplateField {
+  id             String                 @id @default(uuid())
+  templateId     String                 @map("template_id")
+  template       RecommendationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  fieldKey       String                 @map("field_key")
+  label          String
+  fieldType      String                 @default("text") @map("field_type")
+  isRequired     Boolean                @default(false) @map("is_required")
+  displayOrder   Int                    @default(0) @map("display_order")
+  validationRule Json                   @default("{}") @map("validation_rule")
+  @@unique([templateId, fieldKey])
+  @@map("template_fields")
+  @@schema("suivi_reco")
+}
+
+model StakeholderInput {
+  id               String          @id @default(uuid())
+  recommendationId String?         @map("recommendation_id")
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  stakeholderName  String          @map("stakeholder_name")
+  stakeholderEmail String?         @map("stakeholder_email")
+  inputPayload     Json            @default("{}") @map("input_payload")
+  submittedAt      DateTime        @default(now()) @map("submitted_at")
+  @@map("stakeholder_inputs")
+  @@schema("suivi_reco")
+}
+
+model RecommendationComment {
+  id               String         @id @default(uuid())
+  recommendationId String         @map("recommendation_id")
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  authorId         String?        @map("author_id")
+  authorName       String?        @map("author_name")
+  comment          String
+  createdAt        DateTime       @default(now()) @map("created_at")
+  @@map("recommendation_comments")
+  @@schema("suivi_reco")
+}
+
+model RecommendationStatusHistory {
+  id                 String         @id @default(uuid())
+  recommendationId   String         @map("recommendation_id")
+  recommendation     Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  previousStatusCode String?        @map("previous_status_code")
+  statusCode         String         @map("status_code")
+  changedBy          String?        @map("changed_by")
+  comment            String?
+  changedAt          DateTime       @default(now()) @map("changed_at")
+  @@map("recommendation_status_history")
+  @@schema("suivi_reco")
+}
