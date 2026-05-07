@@ -1,3 +1,8 @@
-import { DataTable, StatusBadge } from '@/components/ui';
-const rows = [['REC-2026-001', 'Procédure KYC v2.pdf', 'Supabase Storage', <StatusBadge key="s" tone="amber">À valider</StatusBadge>, 'v1'], ['REC-2026-003', 'PV comité.docx', 'Supabase Storage', <StatusBadge key="s" tone="emerald">Validée</StatusBadge>, 'v2']];
-export default function Page() { return <section className="space-y-6"><div><h1 className="text-3xl font-bold text-slate-950">Preuves et justificatifs</h1><p className="mt-2 text-slate-600">Catalogue des pièces jointes versionnées, hashées et rattachées aux recommandations ou actions.</p></div><DataTable columns={['Reco', 'Document', 'Stockage', 'Validation', 'Version']} rows={rows} empty="Aucune preuve." /></section>; }
+export default function Page() {
+  return (
+    <section className="space-y-3">
+      <h1 className="text-2xl font-semibold capitalize">evidences</h1>
+      <p className="text-slate-600">Module professionnel paramétrable avec traçabilité bancaire.</p>
+    </section>
+  );
+}

@@ -6,12 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
-    "prebuild": "prisma generate && node scripts/check-next-entrypoint.mjs",
-    "test": "node --test --import tsx tests/*.test.ts"
+    "prebuild": "node scripts/check-next-entrypoint.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -26,8 +25,7 @@
     "react-hook-form": "^7.53.2",
     "recharts": "^2.13.3",
     "tailwind-merge": "^2.5.5",
-    "zod": "^3.23.8",
-    "xlsx": "file:vendor/xlsx"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",

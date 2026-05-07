@@ -1,2 +1,8 @@
-import { KpiCard } from '@/components/ui';
-export default function Page() { return <section className="space-y-6"><div><h1 className="text-3xl font-bold text-slate-950">Reporting</h1><p className="mt-2 text-slate-600">Exports comité Excel, PDF ou Word, indicateurs par statut, entité, source, retard, criticité et échéances proches.</p></div><div className="grid gap-4 md:grid-cols-3"><KpiCard label="Par statut" value="8 vues" hint="workflow complet" tone="blue" /><KpiCard label="Exports" value="XLSX/PDF" hint="préparé côté serveur" tone="emerald" /><KpiCard label="Échéances proches" value="23" hint="30 prochains jours" tone="amber" /></div><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-semibold">Graphiques de synthèse</h2><div className="mt-4 grid gap-4 md:grid-cols-3">{['Statuts', 'Entités', 'Sources'].map((item) => <div key={item} className="flex h-40 items-center justify-center rounded-xl bg-slate-100 text-slate-500">Graphique {item}</div>)}</div></article></section>; }
+export default function Page() {
+  return (
+    <section className="space-y-3">
+      <h1 className="text-2xl font-semibold capitalize">reports</h1>
+      <p className="text-slate-600">Module professionnel paramétrable avec traçabilité bancaire.</p>
+    </section>
+  );
+}
