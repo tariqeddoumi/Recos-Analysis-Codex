@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma/client';
+import { validateImportRows, type RawImportRow } from '@/lib/import/import-processing';
 import { confirmImportSchema, parsedRecommendationRowSchema } from '@/lib/validators/import.validator';
 
 export const runtime = 'nodejs';
 
-type ImportRow = { id: string; line_number: number; mapped_data: Record<string, unknown> };
+type ImportRow = { id: string; line_number: number; raw_data: RawImportRow; mapped_data: Record<string, unknown>; status: string };
 
 function slug(value: unknown, fallback: string) {
   const base = String(value || fallback).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toUpperCase();
@@ -16,11 +17,47 @@ export async function POST(request: Request) {
   const parsed = confirmImportSchema.safeParse(payload);
   if (!parsed.success) return NextResponse.json({ error: 'Demande de confirmation invalide.' }, { status: 400 });
 
-  const rows = await prisma.$queryRaw<ImportRow[]>`
-    select id, line_number, mapped_data from suivi_reco.import_rows
-    where batch_id = ${parsed.data.batchId}::uuid and status = 'VALID'
+  let rows: ImportRow[] = await prisma.$queryRaw<ImportRow[]>`
+    select id, line_number, raw_data, mapped_data, status from suivi_reco.import_rows
+    where batch_id = ${parsed.data.batchId}::uuid
     order by line_number asc
   `;
+
+  if (parsed.data.mapping) {
+    const revalidatedRows = validateImportRows(rows.map((row) => row.raw_data), parsed.data.mapping);
+    const summary = {
+      total: revalidatedRows.length,
+      valid: revalidatedRows.filter((row) => row.status === 'VALID').length,
+      rejected: revalidatedRows.filter((row) => row.status === 'REJECTED').length,
+    };
+
+    await prisma.$executeRaw`delete from suivi_reco.import_errors where batch_id = ${parsed.data.batchId}::uuid`;
+    await prisma.$executeRaw`
+      update suivi_reco.import_batches
+      set mapping = ${JSON.stringify(parsed.data.mapping)}::jsonb, total_rows = ${summary.total}, valid_rows = ${summary.valid}, rejected_rows = ${summary.rejected}
+      where id = ${parsed.data.batchId}::uuid
+    `;
+
+    for (const [index, revalidatedRow] of revalidatedRows.entries()) {
+      const rowId = rows[index]?.id;
+      await prisma.$executeRaw`
+        update suivi_reco.import_rows
+        set mapped_data = ${JSON.stringify(revalidatedRow.mapped)}::jsonb, status = ${revalidatedRow.status}
+        where id = ${rowId}::uuid
+      `;
+
+      for (const error of revalidatedRow.errors) {
+        await prisma.$executeRaw`
+          insert into suivi_reco.import_errors (batch_id, row_id, line_number, field_name, message)
+          values (${parsed.data.batchId}::uuid, ${rowId}::uuid, ${revalidatedRow.lineNumber}, null, ${error})
+        `;
+      }
+    }
+
+    rows = rows.map((row, index) => ({ ...row, mapped_data: revalidatedRows[index]?.mapped ?? row.mapped_data, status: revalidatedRows[index]?.status ?? row.status }));
+  }
+
+  rows = rows.filter((row) => row.status === 'VALID' && parsedRecommendationRowSchema.safeParse(row.mapped_data).success);
 
   let imported = 0;
   const rejected: { lineNumber: number; message: string }[] = [];
@@ -64,7 +101,7 @@ export async function POST(request: Request) {
       ) on conflict (reference) do nothing
     `;
     const recommendationRows = await prisma.$queryRaw<{ id: string }[]>`
-      insert into suivi_reco.recommendations (code, mission_id, source_type_id, risk_type_id, severity_level_id, probability_level_id, confidentiality_level_id, status_id, title, observation, owner_name, due_date_initial, due_date_revised, priority_class)
+      insert into suivi_reco.recommendations (code, mission_id, source_type_id, risk_type_id, severity_level_id, probability_level_id, confidentiality_level_id, status_id, title, observation, owner_name, expected_deliverable, due_date_initial, due_date_revised, priority_class)
       values (
         ${data.recommendationCode || slug(data.recommendation, `REC-${row.line_number}`)},
         (select id from suivi_reco.missions where reference = ${data.missionReference}),
@@ -74,7 +111,7 @@ export async function POST(request: Request) {
         (select id from suivi_reco.probability_levels order by level desc limit 1),
         (select id from suivi_reco.confidentiality_levels order by rank asc limit 1),
         coalesce((select id from suivi_reco.parameter_settings where domain = 'WORKFLOW_STATUS' and lower(label) = lower(${data.status}) limit 1), (select id from suivi_reco.parameter_settings where domain = 'WORKFLOW_STATUS' and code = 'OUVERTE' limit 1)),
-        ${data.recommendation}, ${data.observation}, ${data.owner}, ${data.dueDateInitial}::date, nullif(${data.dueDateRevised || ''}, '')::date, ${data.priority}
+        ${data.recommendation}, ${data.observation}, ${data.owner}, nullif(${data.expectedDeliverable || ''}, ''), ${data.dueDateInitial}::date, nullif(${data.dueDateRevised || ''}, '')::date, ${data.priority}
       ) returning id
     `;
 
@@ -96,13 +133,18 @@ export async function POST(request: Request) {
     imported += 1;
   }
 
+  const rejectedCountRows = await prisma.$queryRaw<{ count: number }[]>`
+    select count(*)::int as count from suivi_reco.import_rows where batch_id = ${parsed.data.batchId}::uuid and status = 'REJECTED'
+  `;
+  const finalRejectedRows = rejectedCountRows[0]?.count ?? rejected.length;
+
   await prisma.$executeRaw`
-    update suivi_reco.import_batches set status = ${rejected.length ? 'PARTIALLY_IMPORTED' : 'IMPORTED'}, imported_rows = ${imported}, rejected_rows = ${rejected.length}, confirmed_at = now() where id = ${parsed.data.batchId}::uuid
+    update suivi_reco.import_batches set status = ${finalRejectedRows ? 'PARTIALLY_IMPORTED' : 'IMPORTED'}, imported_rows = ${imported}, rejected_rows = ${finalRejectedRows}, confirmed_at = now() where id = ${parsed.data.batchId}::uuid
   `;
   await prisma.$executeRaw`
     insert into suivi_reco.audit_logs (module, action, object_type, object_id, new_value)
     values ('IMPORT_EXCEL', 'CONFIRMED', 'import_batch', ${parsed.data.batchId}, ${JSON.stringify({ imported, rejected })}::jsonb)
   `;
 
-  return NextResponse.json({ imported, rejected });
+  return NextResponse.json({ imported, rejected, rejectedRows: finalRejectedRows });
 }
