@@ -33,3 +33,32 @@ for all to service_role using (true) with check (true);
 drop policy if exists audit_logs_service_role_all on suivi_reco.audit_logs;
 create policy audit_logs_service_role_all on suivi_reco.audit_logs
 for all to service_role using (true) with check (true);
+
+alter table if exists suivi_reco.import_batches enable row level security;
+alter table if exists suivi_reco.import_rows enable row level security;
+alter table if exists suivi_reco.import_errors enable row level security;
+alter table if exists suivi_reco.excel_column_mappings enable row level security;
+alter table if exists suivi_reco.recommendation_templates enable row level security;
+alter table if exists suivi_reco.template_fields enable row level security;
+alter table if exists suivi_reco.stakeholder_inputs enable row level security;
+alter table if exists suivi_reco.recommendation_comments enable row level security;
+alter table if exists suivi_reco.recommendation_status_history enable row level security;
+
+drop policy if exists import_batches_service_role_all on suivi_reco.import_batches;
+create policy import_batches_service_role_all on suivi_reco.import_batches for all to service_role using (true) with check (true);
+drop policy if exists import_rows_service_role_all on suivi_reco.import_rows;
+create policy import_rows_service_role_all on suivi_reco.import_rows for all to service_role using (true) with check (true);
+drop policy if exists import_errors_service_role_all on suivi_reco.import_errors;
+create policy import_errors_service_role_all on suivi_reco.import_errors for all to service_role using (true) with check (true);
+drop policy if exists excel_column_mappings_service_role_all on suivi_reco.excel_column_mappings;
+create policy excel_column_mappings_service_role_all on suivi_reco.excel_column_mappings for all to service_role using (true) with check (true);
+drop policy if exists recommendation_templates_service_role_all on suivi_reco.recommendation_templates;
+create policy recommendation_templates_service_role_all on suivi_reco.recommendation_templates for all to service_role using (true) with check (true);
+drop policy if exists template_fields_service_role_all on suivi_reco.template_fields;
+create policy template_fields_service_role_all on suivi_reco.template_fields for all to service_role using (true) with check (true);
+drop policy if exists stakeholder_inputs_service_role_all on suivi_reco.stakeholder_inputs;
+create policy stakeholder_inputs_service_role_all on suivi_reco.stakeholder_inputs for all to service_role using (true) with check (true);
+drop policy if exists recommendation_comments_service_role_all on suivi_reco.recommendation_comments;
+create policy recommendation_comments_service_role_all on suivi_reco.recommendation_comments for all to service_role using (true) with check (true);
+drop policy if exists recommendation_status_history_service_role_all on suivi_reco.recommendation_status_history;
+create policy recommendation_status_history_service_role_all on suivi_reco.recommendation_status_history for all to service_role using (true) with check (true);
