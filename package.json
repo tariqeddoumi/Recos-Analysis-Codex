@@ -10,7 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
-    "prebuild": "prisma generate && node scripts/check-next-entrypoint.mjs",
+    "prebuild": "node scripts/check-next-route-conflicts.mjs && prisma generate && node scripts/check-next-entrypoint.mjs",
     "test": "node --test --import tsx tests/*.test.ts"
   },
   "dependencies": {
