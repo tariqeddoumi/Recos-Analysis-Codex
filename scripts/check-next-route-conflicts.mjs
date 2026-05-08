@@ -1,8 +1,10 @@
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 const appDir = join(process.cwd(), 'app');
 const routeFiles = [];
+const legacyImportExcelPage = join(appDir, '(protected)', 'import-excel', 'page.tsx');
+const canonicalImportExcelPage = join(appDir, 'import-excel', 'page.tsx');
 
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -25,6 +27,22 @@ function normalizeRoute(filePath) {
   return `${fileName?.split('.')[0]}:${routePath}`;
 }
 
+function printConflictHelp() {
+  console.error('');
+  console.error('How to fix:');
+  console.error('- Keep exactly one page for each public URL after removing route-group folders like `(protected)`.');
+  console.error('- For Import Excel, keep `app/import-excel/page.tsx` and remove `app/(protected)/import-excel/page.tsx`.');
+  console.error('- Commit the deletion; Vercel builds from Git and will fail if both files are present in the deployed commit.');
+}
+
+if (existsSync(legacyImportExcelPage) && existsSync(canonicalImportExcelPage)) {
+  console.error('❌ Legacy Import Excel route conflict detected before Next.js build:');
+  console.error(`  • ${relative(process.cwd(), legacyImportExcelPage)}`);
+  console.error(`  • ${relative(process.cwd(), canonicalImportExcelPage)}`);
+  printConflictHelp();
+  process.exit(1);
+}
+
 walk(appDir);
 
 const routes = new Map();
@@ -42,6 +60,7 @@ if (conflicts.length > 0) {
     console.error(`- ${route}`);
     for (const file of files) console.error(`  • ${file}`);
   }
+  printConflictHelp();
   process.exit(1);
 }
 
