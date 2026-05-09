@@ -1,11 +1,38 @@
-import { DataTable, StatusBadge } from '@/components/ui';
+import { CrudWorkspace, type CrudField, type CrudRecord } from '@/components/crud-workspace';
+import { StatusBadge } from '@/components/ui';
 
-const rows = [
-  ['REC-2026-001', 'M-IG-2026-04', 'Renforcer la revue KYC périodique', 'Conformité', <StatusBadge key="s" tone="blue">En cours</StatusBadge>, <StatusBadge key="c" tone="red">Critique</StatusBadge>, '31/05/2026'],
-  ['REC-2026-002', 'M-RISK-2026-02', 'Formaliser les contrôles de dépassement', 'Risques', <StatusBadge key="s" tone="amber">En attente justificatif</StatusBadge>, <StatusBadge key="c" tone="amber">Haute</StatusBadge>, '15/06/2026'],
-  ['REC-2026-003', 'M-AUD-2026-01', 'Mettre à jour la matrice de délégation', 'Opérations', <StatusBadge key="s" tone="emerald">Réalisée</StatusBadge>, <StatusBadge key="c">Moyenne</StatusBadge>, '20/06/2026'],
+const fields: CrudField[] = [
+  { key: 'code', label: 'Code', required: true, placeholder: 'REC-2026-001' },
+  { key: 'mission', label: 'Mission', required: true },
+  { key: 'title', label: 'Recommandation', required: true },
+  { key: 'entity', label: 'Entité', required: true },
+  { key: 'status', label: 'Statut', type: 'select', required: true, options: ['Brouillon', 'Ouverte', 'En cours', 'En attente justificatif', 'Réalisée', 'Validée', 'Clôturée', 'Rejetée'] },
+  { key: 'severity', label: 'Criticité', type: 'select', required: true, options: ['Faible', 'Moyenne', 'Haute', 'Critique'] },
+  { key: 'dueDate', label: 'Échéance', type: 'date', required: true },
+  { key: 'owner', label: 'Responsable', required: true },
+  { key: 'expectedDeliverable', label: 'Livrable attendu', type: 'textarea' },
+];
+
+const rows: CrudRecord[] = [
+  { id: 'reco-1', code: 'REC-2026-001', mission: 'M-IG-2026-04', title: 'Renforcer la revue KYC périodique', entity: 'Conformité', status: 'En cours', severity: 'Critique', dueDate: '2026-05-31', owner: 'Responsable Conformité', expectedDeliverable: 'Procédure KYC validée et preuves de contrôle.' },
+  { id: 'reco-2', code: 'REC-2026-002', mission: 'M-RISK-2026-02', title: 'Formaliser les contrôles de dépassement', entity: 'Risques', status: 'En attente justificatif', severity: 'Haute', dueDate: '2026-06-15', owner: 'Risk Manager', expectedDeliverable: 'Rapport de contrôles mensuel.' },
+  { id: 'reco-3', code: 'REC-2026-003', mission: 'M-AUD-2026-01', title: 'Mettre à jour la matrice de délégation', entity: 'Opérations', status: 'Réalisée', severity: 'Moyenne', dueDate: '2026-06-20', owner: 'Directeur Opérations', expectedDeliverable: 'Matrice publiée.' },
 ];
 
 export default function Page() {
-  return <section className="space-y-6"><div><h1 className="text-3xl font-bold text-slate-950">Recommandations</h1><p className="mt-2 text-slate-600">Registre central avec recherche, filtres, tri, pagination, badges de statut, criticité, retard et priorité.</p></div><DataTable columns={['Code', 'Mission', 'Recommandation', 'Entité', 'Statut', 'Criticité', 'Échéance']} rows={rows} empty="Aucune recommandation." /><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-semibold">Fiche détail recommandation</h2><p className="mt-2 text-sm text-slate-600">La fiche détail consolide constat, risque, plan d’action, livrables attendus, commentaires, preuves, historique de statut et demandes de prorogation.</p></article></section>;
+  return (
+    <section className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-950">Recommandations</h1>
+        <p className="mt-2 text-slate-600">Registre central avec recherche, filtres, tri, export, badges de statut, criticité, retard et priorité.</p>
+      </div>
+      <CrudWorkspace title="CRUD des recommandations" description="Gestion complète des recommandations avec contrôle des champs clés, préparation des workflows et export comité." fields={fields} initialRows={rows} columns={['code', 'mission', 'title', 'entity', 'status', 'severity', 'dueDate']} statusField="status">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><StatusBadge tone="red">Priorité</StatusBadge><p className="mt-2">Les criticités haute et critique sont immédiatement visibles.</p></div>
+          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><StatusBadge tone="blue">Workflow</StatusBadge><p className="mt-2">Les statuts sont alignés sur le cycle brouillon → clôture.</p></div>
+          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><StatusBadge tone="emerald">Traçabilité</StatusBadge><p className="mt-2">Chaque opération est prête pour audit log côté serveur.</p></div>
+        </div>
+      </CrudWorkspace>
+    </section>
+  );
 }
