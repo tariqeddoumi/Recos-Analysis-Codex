@@ -79,9 +79,20 @@ export async function POST(request: Request) {
     `;
 
     if (duplicate.length > 0) {
-      rejected.push({ lineNumber: row.line_number, message: 'Doublon détecté avec les recommandations existantes.' });
-      await prisma.$executeRaw`update suivi_reco.import_rows set status = 'REJECTED' where id = ${row.id}::uuid`;
-      continue;
+      if (parsed.data.duplicateStrategy === 'ignore') {
+        rejected.push({ lineNumber: row.line_number, message: 'Doublon ignoré avec les recommandations existantes.' });
+        await prisma.$executeRaw`update suivi_reco.import_rows set status = 'DUPLICATE_IGNORED' where id = ${row.id}::uuid`;
+        continue;
+      }
+      if (parsed.data.duplicateStrategy === 'update') {
+        await prisma.$executeRaw`
+          update suivi_reco.recommendations
+          set title = ${data.recommendation}, observation = ${data.observation}, owner_name = ${data.owner}, expected_deliverable = nullif(${data.expectedDeliverable || ''}, ''), due_date_revised = nullif(${data.dueDateRevised || data.dueDateInitial || ''}, '')::date, updated_at = now()
+          where id = ${duplicate[0]?.id}::uuid`;
+        await prisma.$executeRaw`update suivi_reco.import_rows set status = 'UPDATED' where id = ${row.id}::uuid`;
+        imported += 1;
+        continue;
+      }
     }
 
     await prisma.$executeRaw`
@@ -103,7 +114,7 @@ export async function POST(request: Request) {
     const recommendationRows = await prisma.$queryRaw<{ id: string }[]>`
       insert into suivi_reco.recommendations (code, mission_id, source_type_id, risk_type_id, severity_level_id, probability_level_id, confidentiality_level_id, status_id, title, observation, owner_name, expected_deliverable, due_date_initial, due_date_revised, priority_class)
       values (
-        ${data.recommendationCode || slug(data.recommendation, `REC-${row.line_number}`)},
+        ${duplicate.length > 0 ? `${data.recommendationCode || slug(data.recommendation, `REC-${row.line_number}`)}-IMPORT-${row.line_number}` : data.recommendationCode || slug(data.recommendation, `REC-${row.line_number}`)},
         (select id from suivi_reco.missions where reference = ${data.missionReference}),
         coalesce((select id from suivi_reco.source_types where lower(label) = lower(${data.source}) or lower(code) = lower(${data.source}) limit 1), (select id from suivi_reco.source_types order by coefficient desc limit 1)),
         coalesce((select id from suivi_reco.risk_types where lower(label) = lower(${data.risk}) or lower(code) = lower(${data.risk}) limit 1), (select id from suivi_reco.risk_types order by code asc limit 1)),

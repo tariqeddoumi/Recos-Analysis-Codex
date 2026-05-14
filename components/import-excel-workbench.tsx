@@ -13,6 +13,8 @@ type PreviewRow = {
 
 type PreviewResponse = {
   batchId: string;
+  sheetName: string;
+  sheetNames: string[];
   headers: string[];
   mapping: Record<ApplicationField, string>;
   rows: PreviewRow[];
@@ -36,6 +38,9 @@ export function ImportExcelWorkbench() {
   const [importType, setImportType] = useState<(typeof importTypes)[number]>('recommendations');
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [sheetName, setSheetName] = useState('');
+  const [corrections, setCorrections] = useState<Record<string, Record<string, string>>>({});
+  const [duplicateStrategy, setDuplicateStrategy] = useState<'create' | 'ignore' | 'update'>('ignore');
   const [history, setHistory] = useState<Batch[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -60,6 +65,7 @@ export function ImportExcelWorkbench() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('importType', importType);
+    if (sheetName) formData.append('sheetName', sheetName);
     setIsUploading(true);
     setMessage('Analyse du fichier en cours…');
     const response = await fetch('/api/import-excel/upload', { method: 'POST', body: formData });
@@ -71,18 +77,38 @@ export function ImportExcelWorkbench() {
     }
     setPreview(data);
     setMapping(data.mapping ?? {});
+    setSheetName(data.sheetName ?? '');
+    setCorrections({});
     setMessage('Prévisualisation générée. Vérifiez le mapping et les rejets avant confirmation.');
     await refreshHistory();
   }
 
-  async function confirm() {
+  async function reanalyse() {
+    if (!preview) return;
+    setMessage('Réanalyse des corrections en cours…');
+    const response = await fetch('/api/import-excel/reanalyse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ batchId: preview.batchId, mapping, corrections }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error ?? 'Erreur pendant la réanalyse.');
+      return;
+    }
+    setPreview((current) => current ? { ...current, rows: data.rows, summary: data.summary } : current);
+    setMessage('Réanalyse terminée. Vous pouvez confirmer uniquement les lignes valides.');
+    await refreshHistory();
+  }
+
+  async function confirm(importOnlyValid = true) {
     if (!preview) return;
     setIsConfirming(true);
     setMessage('Confirmation de l’import en cours…');
     const response = await fetch('/api/import-excel/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ batchId: preview.batchId, mapping }),
+      body: JSON.stringify({ batchId: preview.batchId, mapping, importOnlyValid, duplicateStrategy }),
     });
     const data = await response.json();
     setIsConfirming(false);
@@ -110,6 +136,14 @@ export function ImportExcelWorkbench() {
               <option value="canevas">Canevas</option>
             </select>
           </label>
+          {preview?.sheetNames?.length ? (
+            <label className="space-y-2 text-sm font-medium text-slate-700">
+              Feuille Excel
+              <select value={sheetName} onChange={(event) => setSheetName(event.target.value)} className="block w-full rounded-lg border border-slate-300 p-2 text-sm">
+                {preview.sheetNames.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </label>
+          ) : null}
           <button onClick={upload} disabled={isUploading} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400">
             {isUploading ? 'Analyse…' : 'Prévisualiser'}
           </button>
@@ -124,9 +158,18 @@ export function ImportExcelWorkbench() {
               <h2 className="text-lg font-semibold text-slate-900">Prévisualisation du batch</h2>
               <p className="text-sm text-slate-600">{preview.summary.total} lignes détectées · {preview.summary.valid} valides · {preview.summary.rejected} rejetées</p>
             </div>
-            <button onClick={confirm} disabled={!canConfirm} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400">
-              {isConfirming ? 'Import…' : 'Confirmer import'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <select value={duplicateStrategy} onChange={(event) => setDuplicateStrategy(event.target.value as 'create' | 'ignore' | 'update')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="ignore">Ignorer doublons</option>
+                <option value="update">Mettre à jour doublons</option>
+                <option value="create">Créer malgré doublons</option>
+              </select>
+              <button onClick={reanalyse} className="rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700">Réanalyser après correction</button>
+              <a href={`/api/import-excel/errors?batchId=${preview.batchId}`} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Exporter erreurs</a>
+              <button onClick={() => confirm(true)} disabled={!canConfirm} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400">
+                {isConfirming ? 'Import…' : 'Importer uniquement les lignes valides'}
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -144,16 +187,22 @@ export function ImportExcelWorkbench() {
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
-                <tr><th className="p-3">Ligne</th><th className="p-3">Statut</th><th className="p-3">Mission</th><th className="p-3">Recommandation</th><th className="p-3">Owner</th><th className="p-3">Erreurs</th></tr>
+                <tr><th className="p-3">Ligne</th><th className="p-3">Statut</th>{preview.headers.map((header) => <th key={header} className="p-3">{header}</th>)}<th className="p-3">Erreurs</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {preview.rows.map((row) => (
                   <tr key={row.lineNumber}>
                     <td className="p-3">{row.lineNumber}</td>
                     <td className="p-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${row.status === 'VALID' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{row.status}</span></td>
-                    <td className="p-3">{row.mapped.missionReference}</td>
-                    <td className="max-w-md p-3">{row.mapped.recommendation}</td>
-                    <td className="p-3">{row.mapped.owner}</td>
+                    {preview.headers.map((header) => (
+                      <td key={header} className="min-w-44 p-3">
+                        <input
+                          defaultValue={String(corrections[String(row.lineNumber)]?.[header] ?? row.rawRow[header] ?? '')}
+                          onChange={(event) => setCorrections((current) => ({ ...current, [String(row.lineNumber)]: { ...(current[String(row.lineNumber)] ?? {}), [header]: event.target.value } }))}
+                          className={`w-full rounded border px-2 py-1 text-xs ${row.status === 'REJECTED' ? 'border-red-200 bg-red-50' : 'border-slate-200'}`}
+                        />
+                      </td>
+                    ))}
                     <td className="p-3 text-red-700">{row.errors.join(' · ') || '—'}</td>
                   </tr>
                 ))}

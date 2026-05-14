@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get('file');
   const importType = formData.get('importType');
-  const parsed = uploadImportSchema.safeParse({ importType });
+  const sheetNameInput = formData.get('sheetName');
+  const parsed = uploadImportSchema.safeParse({ importType, sheetName: typeof sheetNameInput === 'string' ? sheetNameInput : undefined });
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'Fichier Excel obligatoire.' }, { status: 400 });
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   const workbookBuffer = Buffer.from(await file.arrayBuffer());
   const xlsx = (await import('xlsx')) as XlsxModule;
   const workbook = xlsx.read(workbookBuffer, { type: 'buffer', cellDates: true });
-  const sheetName = workbook.SheetNames[0];
+  const sheetName = parsed.data.sheetName && workbook.SheetNames.includes(parsed.data.sheetName) ? parsed.data.sheetName : workbook.SheetNames[0];
   const rawRows = sheetName ? xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '', raw: false }) : [];
   const headers = Array.from(new Set(rawRows.flatMap((row) => Object.keys(row))));
   const mapping = detectColumnMapping(headers);
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     batchId,
     sheetName,
+    sheetNames: workbook.SheetNames,
     headers,
     mapping,
     rows: validatedRows.slice(0, PREVIEW_LIMIT),

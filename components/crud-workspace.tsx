@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, useTransition, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { StatusBadge } from '@/components/ui';
 
 type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'email';
@@ -30,6 +30,10 @@ export function CrudWorkspace({
   readonly = false,
   enabledViews = ['create', 'read', 'update', 'delete', 'export'],
   children,
+  apiEndpoint,
+  totalRows,
+  page = 1,
+  pageSize = 25,
 }: {
   title: string;
   description: string;
@@ -40,12 +44,18 @@ export function CrudWorkspace({
   readonly?: boolean;
   enabledViews?: CrudView[];
   children?: ReactNode;
+  apiEndpoint?: string;
+  totalRows?: number;
+  page?: number;
+  pageSize?: number;
 }) {
   const [rows, setRows] = useState(initialRows);
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CrudRecord>(() => buildEmptyDraft(fields));
   const [sortKey, setSortKey] = useState(fields[0]?.key ?? 'id');
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const visibleColumns = columns ?? fields.map((field) => field.key);
   const canCreate = enabledViews.includes('create') && !readonly;
@@ -68,13 +78,31 @@ export function CrudWorkspace({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canCreate && !canUpdate) return;
+    setError(null);
 
-    if (editingId) {
-      setRows((currentRows) => currentRows.map((row) => (row.id === editingId ? { ...row, ...draft, id: editingId } : row)));
-    } else {
-      setRows((currentRows) => [{ ...draft, id: crypto.randomUUID() }, ...currentRows]);
-    }
-    resetDraft();
+    startTransition(async () => {
+      try {
+        if (apiEndpoint) {
+          const response = await fetch(editingId ? `${apiEndpoint}/${editingId}` : apiEndpoint, {
+            method: editingId ? 'PUT' : 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(draft),
+          });
+          if (!response.ok) throw new Error((await response.json()).error ?? 'Erreur de sauvegarde.');
+          window.location.reload();
+          return;
+        }
+
+        if (editingId) {
+          setRows((currentRows) => currentRows.map((row) => (row.id === editingId ? { ...row, ...draft, id: editingId } : row)));
+        } else {
+          setRows((currentRows) => [{ ...draft, id: crypto.randomUUID() }, ...currentRows]);
+        }
+        resetDraft();
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Erreur inattendue.');
+      }
+    });
   }
 
   function startEdit(row: CrudRecord) {
@@ -83,11 +111,28 @@ export function CrudWorkspace({
   }
 
   function deleteRow(id: string) {
-    setRows((currentRows) => currentRows.filter((row) => row.id !== id));
-    if (editingId === id) resetDraft();
+    setError(null);
+    startTransition(async () => {
+      try {
+        if (apiEndpoint) {
+          const response = await fetch(`${apiEndpoint}/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error((await response.json()).error ?? 'Erreur de suppression.');
+          window.location.reload();
+          return;
+        }
+        setRows((currentRows) => currentRows.filter((row) => row.id !== id));
+        if (editingId === id) resetDraft();
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Erreur inattendue.');
+      }
+    });
   }
 
   function exportCsv() {
+    if (apiEndpoint) {
+      window.location.href = `${apiEndpoint}?format=csv`;
+      return;
+    }
     const csvRows = [visibleColumns.map((key) => findField(fields, key)?.label ?? key).join(';')]
       .concat(filteredRows.map((row) => visibleColumns.map((key) => escapeCsv(row[key] ?? '')).join(';')))
       .join('\n');
@@ -119,6 +164,8 @@ export function CrudWorkspace({
           </div>
         </div>
         {children ? <div className="mt-4">{children}</div> : null}
+        {error ? <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</div> : null}
+        {isPending ? <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-medium text-blue-700">Traitement serveur en cours…</div> : null}
       </article>
 
       {!readonly ? (
@@ -126,7 +173,7 @@ export function CrudWorkspace({
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h3 className="font-semibold text-slate-950">{editingId ? 'Modifier un enregistrement' : 'Créer un enregistrement'}</h3>
-              <p className="text-sm text-slate-500">Validation HTML5, champs obligatoires et valeurs normalisées pour préparer le branchement API.</p>
+              <p className="text-sm text-slate-500">Validation HTML5, sauvegarde API/Prisma, audit log serveur et rechargement de la liste persistée.</p>
             </div>
             {editingId ? <button type="button" onClick={resetDraft} className="text-sm font-semibold text-slate-500 hover:text-slate-900">Annuler</button> : null}
           </div>
@@ -139,7 +186,7 @@ export function CrudWorkspace({
             ))}
           </div>
           <div className="mt-4 flex justify-end">
-            <button type="submit" className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">{editingId ? 'Enregistrer les modifications' : 'Ajouter'}</button>
+            <button type="submit" disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">{editingId ? 'Enregistrer les modifications' : 'Ajouter'}</button>
           </div>
         </form>
       ) : null}
@@ -180,8 +227,8 @@ export function CrudWorkspace({
           </tbody>
         </table>
         <div className="flex items-center justify-between border-t border-slate-200 p-3 text-xs text-slate-500">
-          <span>{filteredRows.length} ligne(s) affichée(s) / {rows.length}</span>
-          <span>CRUD local prêt à remplacer par API routes + Prisma</span>
+          <span>{filteredRows.length} ligne(s) affichée(s) / {totalRows ?? rows.length}</span>
+          <span>Page {page} · {pageSize} lignes · Source Prisma/Supabase</span>
         </div>
       </div>
     </div>

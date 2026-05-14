@@ -1,32 +1,56 @@
-import { CrudWorkspace, type CrudField, type CrudRecord } from '@/components/crud-workspace';
-import { KpiCard } from '@/components/ui';
+import { KpiCard, StatusBadge } from '@/components/ui';
+import { ReportingService } from '@/services/reporting.service';
 
-const fields: CrudField[] = [
-  { key: 'name', label: 'Vue / export', required: true },
-  { key: 'format', label: 'Format', type: 'select', required: true, options: ['XLSX', 'PDF', 'Word', 'Dashboard'] },
-  { key: 'scope', label: 'Périmètre', required: true },
-  { key: 'frequency', label: 'Fréquence', type: 'select', required: true, options: ['À la demande', 'Hebdomadaire', 'Mensuelle', 'Comité'] },
-  { key: 'status', label: 'Statut', type: 'select', required: true, options: ['Actif', 'Brouillon', 'Archivé'] },
-];
+export const dynamic = 'force-dynamic';
 
-const rows: CrudRecord[] = [
-  { id: 'report-1', name: 'Comité recommandations critiques', format: 'PDF', scope: 'Criticité haute et critique', frequency: 'Comité', status: 'Actif' },
-  { id: 'report-2', name: 'Plan actions global', format: 'XLSX', scope: 'Toutes entités', frequency: 'Hebdomadaire', status: 'Actif' },
-];
-
-export default function Page() {
+export default async function Page() {
+  const reporting = new ReportingService();
+  const dashboard = await reporting.dashboard();
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-950">Reporting</h1>
-        <p className="mt-2 text-slate-600">Exports comité Excel, PDF ou Word, indicateurs par statut, entité, source, retard, criticité et échéances proches.</p>
+        <h1 className="text-3xl font-bold text-slate-950">Reporting comité</h1>
+        <p className="mt-2 text-slate-600">Exports comité branchés à la base, filtres consolidés et tableaux dynamiques par période, entité, source, statut et criticité.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-        <KpiCard label="Par statut" value="8 vues" hint="workflow complet" tone="blue" />
-        <KpiCard label="Exports" value="XLSX/PDF" hint="préparé côté serveur" tone="emerald" />
-        <KpiCard label="Échéances proches" value="23" hint="30 prochains jours" tone="amber" />
+        <KpiCard label="Excel comité" value="XLSX" hint="Export CSV compatible Excel réel" tone="emerald" />
+        <KpiCard label="PDF synthétique" value="PDF" hint="Endpoint prêt pour génération PDF serveur" tone="red" />
+        <KpiCard label="Note comité" value="Word" hint="Endpoint prêt pour génération DOCX" tone="blue" />
       </div>
-      <CrudWorkspace title="CRUD des vues de reporting" description="Créer et maintenir les modèles d’exports comité, changer leur format, archiver les vues obsolètes et exporter la liste de paramétrage." fields={fields} initialRows={rows} columns={['name', 'format', 'scope', 'frequency', 'status']} statusField="status" />
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Exports opérationnels</h2>
+            <p className="text-sm text-slate-600">Les exports utilisent les mêmes requêtes que le dashboard et l’audit log.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a href="/api/reports/committee?format=excel" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Exporter Excel comité</a>
+            <a href="/api/reports/committee?format=pdf" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Exporter PDF</a>
+            <a href="/api/reports/committee?format=word" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Exporter Word</a>
+          </div>
+        </div>
+      </article>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Consolidated title="Statuts" rows={dashboard.byStatus} />
+        <Consolidated title="Criticités" rows={dashboard.bySeverity} />
+      </div>
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold">Filtres disponibles</h2>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {['Période', 'Entité', 'Source', 'Statut', 'Criticité', 'Responsable', 'Échéance'].map((filter) => <StatusBadge key={filter} tone="blue">{filter}</StatusBadge>)}
+        </div>
+      </article>
     </section>
+  );
+}
+
+function Consolidated({ title, rows }: { title: string; rows: Array<{ label: string; value: number }> }) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="text-lg font-semibold">Tableau consolidé · {title}</h2>
+      <div className="mt-4 divide-y divide-slate-100">
+        {rows.length === 0 ? <p className="text-sm text-slate-500">Aucune donnée.</p> : rows.map((row) => <div key={row.label} className="flex justify-between py-2 text-sm"><span>{row.label}</span><strong>{row.value}</strong></div>)}
+      </div>
+    </article>
   );
 }
