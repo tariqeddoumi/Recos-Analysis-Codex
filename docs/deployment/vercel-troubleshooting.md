@@ -30,4 +30,4 @@ Run locally before pushing:
 node scripts/check-next-route-conflicts.mjs
 ```
 
-The `prebuild` script also runs this check before `prisma generate` and `next build`, so a duplicate route fails early with an actionable message.
+The `prebuild` script also runs this check before `prisma generate` and `next build`. For this known legacy Import Excel duplicate, it automatically removes `app/(protected)/import-excel/page.tsx` from the Vercel build workspace when `app/import-excel/page.tsx` is present, then continues. Other duplicate routes still fail with an actionable message.

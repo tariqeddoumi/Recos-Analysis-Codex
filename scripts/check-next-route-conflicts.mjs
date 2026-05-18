@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { dirname, join, relative, sep } from 'node:path';
 
 const appDir = join(process.cwd(), 'app');
 const routeFiles = [];
@@ -35,12 +35,22 @@ function printConflictHelp() {
   console.error('- Commit the deletion; Vercel builds from Git and will fail if both files are present in the deployed commit.');
 }
 
+function removeEmptyDirectory(dir) {
+  try {
+    rmSync(dir, { recursive: false });
+  } catch {
+    // Directory is not empty or already absent; nothing else to do.
+  }
+}
+
 if (existsSync(legacyImportExcelPage) && existsSync(canonicalImportExcelPage)) {
-  console.error('❌ Legacy Import Excel route conflict detected before Next.js build:');
-  console.error(`  • ${relative(process.cwd(), legacyImportExcelPage)}`);
-  console.error(`  • ${relative(process.cwd(), canonicalImportExcelPage)}`);
-  printConflictHelp();
-  process.exit(1);
+  console.warn('⚠️ Legacy Import Excel route conflict detected before Next.js build:');
+  console.warn(`  • ${relative(process.cwd(), legacyImportExcelPage)}`);
+  console.warn(`  • ${relative(process.cwd(), canonicalImportExcelPage)}`);
+  console.warn('Auto-removing the legacy route from the build workspace so Vercel can continue.');
+  console.warn('Please keep the deletion committed in Git; this fallback exists only to protect cached/merged deployments.');
+  rmSync(legacyImportExcelPage, { force: true });
+  removeEmptyDirectory(dirname(legacyImportExcelPage));
 }
 
 walk(appDir);

@@ -27,18 +27,9 @@ export const parsedRecommendationRowSchema = z.object({
 
 export const uploadImportSchema = z.object({
   importType: importTypeSchema,
-  sheetName: z.string().optional(),
 });
 
 export const confirmImportSchema = z.object({
   batchId: z.string().uuid(),
   mapping: z.record(z.enum(applicationFields.map((field) => field.key) as [string, ...string[]]), z.string()).optional(),
-  importOnlyValid: z.boolean().default(true),
-  duplicateStrategy: z.enum(['create', 'ignore', 'update']).default('ignore'),
-});
-
-export const reanalyseImportSchema = z.object({
-  batchId: z.string().uuid(),
-  mapping: z.record(z.enum(applicationFields.map((field) => field.key) as [string, ...string[]]), z.string()),
-  corrections: z.record(z.string(), z.record(z.string(), z.string())).default({}),
 });

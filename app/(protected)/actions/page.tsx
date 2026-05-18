@@ -1,7 +1,3 @@
-import { WorkspacePage } from '@/components/workspace-page';
-
-export const dynamic = 'force-dynamic';
-
-export default function Page() {
-  return <WorkspacePage resource="actions" heading="Plans d’action" intro="Suivi opérationnel des plans, responsables, jalons, preuves attendues et avancement pondéré." />;
-}
+import { DataTable, StatusBadge } from '@/components/ui';
+const rows = [['REC-2026-001', 'Mettre à jour la procédure KYC', 'Responsable Conformité', <StatusBadge key="s" tone="blue">En cours</StatusBadge>, '70%', '31/05/2026'], ['REC-2026-002', 'Produire le rapport de contrôles', 'Risk Manager', <StatusBadge key="s" tone="amber">Justificatif attendu</StatusBadge>, '40%', '15/06/2026']];
+export default function Page() { return <section className="space-y-6"><div><h1 className="text-3xl font-bold text-slate-950">Plans d’action</h1><p className="mt-2 text-slate-600">Suivi opérationnel pondéré, livrables attendus, échéances révisées et preuves obligatoires.</p></div><DataTable columns={['Reco', 'Action', 'Owner', 'Statut', 'Avancement', 'Échéance']} rows={rows} empty="Aucune action." /></section>; }
